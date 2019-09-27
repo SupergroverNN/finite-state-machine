@@ -1,84 +1,139 @@
 class FSM {
-  /**
-   * Creates new FSM instance.
-   * @param config
-   */
   constructor(config) {
     if (!config) {
       throw new Error();
     }
     this.config = config;
-    this.trigger = "initial";
-    this.options = ["normal", "busy", "sleeping", "hungry"];
+    this.options = ["normal", "busy", "hungry", "sleeping"];
+    this.index = 0;
+    this.state = ["normal"];
+    this.error = false;
   }
 
-  /**
-   * Returns active state.
-   * @returns {String}
-   */
   getState() {
-    let params = "";
-    switch (this.trigger) {
-      case "initial":
-        params = this.config.initial;
-        break;
-      case "study":
-        params = this.config.states.normal.transitions.study;
-        break;
-    }
-    return params;
+    return this.state[this.index];
   }
 
-  /**
-   * Goes to specified state.
-   * @param state
-   */
   changeState(state) {
     if (this.options.includes(state)) {
-      this.config.initial = state;
+      this.state = this.state.slice(0, this.index + 1);
+      this.state.push(state);
+      this.index++;
     } else {
       throw new Error();
     }
   }
 
-  /**
-   * Changes state according to event transition rules.
-   * @param event
-   */
-  trigger(event) {}
+  trigger(event) {
+    if (!this.error) {
+      switch (event) {
+        case "initial":
+          this.state.push(this.config.initial);
+          this.index++;
+          break;
+        case "study":
+          this.state = this.state.slice(0, this.index + 1);
+          this.state.push(this.config.states.normal.transitions.study);
+          this.index++;
+          break;
+        case "hungry":
+        case "eat":
+          this.state = this.state.slice(0, this.index + 1);
+          this.state.push(this.config.states.hungry.transitions.eat);
+          this.index++;
+          break;
+        case "get_tired":
+          this.state = this.state.slice(0, this.index + 1);
+          this.state.push(this.config.states.busy.transitions.get_tired);
+          this.index++;
+          break;
+        case "get_hungry":
+          this.state = this.state.slice(0, this.index + 1);
+          this.state.push(this.config.states.busy.transitions.get_hungry);
+          this.index++;
+          break;
+        case "get_up":
+          this.state.splice(0, this.index + 1);
+          this.state.push(this.config.states.busy.transitions.get_up);
+          this.index++;
+          break;
+        default:
+          this.error = true;
+          throw new Error();
+      }
+    } else {
+      throw new Error();
+    }
+  }
 
-  /**
-   * Resets FSM state to initial.
-   */
-  reset() {}
+  reset() {
+    this.state = ["normal"];
+    this.index = 0;
+  }
 
-  /**
-   * Returns an array of states for which there are specified event transition rules.
-   * Returns all states if argument is undefined.
-   * @param event
-   * @returns {Array}
-   */
-  getStates(event) {}
+  getStates(event) {
+    if (!event) {
+      return this.options;
+    }
+    const options = [];
+    Object.keys(this.config.states).forEach(key => {
+      const obj = this.config.states[key].transitions;
+      if (event in obj) {
+        options.push(key);
+      }
+    });
+    return options;
+  }
 
-  /**
-   * Goes back to previous state.
-   * Returns false if undo is not available.
-   * @returns {Boolean}
-   */
-  undo() {}
+  undo() {
+    if (this.index > 0) {
+      this.index--;
+      return true;
+    }
+    return false;
+  }
 
-  /**
-   * Goes redo to state.
-   * Returns false if redo is not available.
-   * @returns {Boolean}
-   */
-  redo() {}
+  redo() {
+    if (this.index < this.state.length - 1) {
+      this.index++;
+      return true;
+    }
+    return false;
+  }
 
-  /**
-   * Clears transition history
-   */
-  clearHistory() {}
+  clearHistory() {
+    this.state = ["normal"];
+    this.index = 0;
+  }
 }
+
+const config = {
+  initial: "normal",
+  states: {
+    normal: {
+      transitions: {
+        study: "busy"
+      }
+    },
+    busy: {
+      transitions: {
+        get_tired: "sleeping",
+        get_hungry: "hungry"
+      }
+    },
+    hungry: {
+      transitions: {
+        eat: "normal"
+      }
+    },
+    sleeping: {
+      transitions: {
+        get_hungry: "hungry",
+        get_up: "normal"
+      }
+    }
+  }
+};
 
 module.exports = FSM;
 
